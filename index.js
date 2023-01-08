@@ -13,7 +13,7 @@ const LinearRegressionModel = (data) => {
     const alpha = 0.001;
 
     // Define the number of iterations
-    const iterations = 1000;
+    const iterations = 100000;
 
     // Train the model
     const model = train(X, y, alpha, iterations, w, b);
@@ -30,7 +30,7 @@ const train = (X, y, alpha, iterations, w, b) => {
     return { w: trainedW, b: trainedB, costs };
 };
 
-const gradientDescent = (X, y, alpha, iterations, w, b) => {
+const gradientDescentog = (X, y, alpha, iterations, w, b) => {
     console.log('Training model...');
 
     // Initialize an array to store the costs per iteration
@@ -62,6 +62,67 @@ const gradientDescent = (X, y, alpha, iterations, w, b) => {
     return { w, b, costs };
 };
 
+const calculateGradient = (X, y, w, b) => {
+    // console.log("line 66", w);
+    const m = X.length;
+    return X.reduce((accumulator, x, j) => {
+        // console.log("line-69", j, accumulator, x, y[j], w, b);
+        const predictedValue = predict({ w, b }, x);
+        const difference = predictedValue - y[j];
+        const product = difference * x;
+        // console.log("line 73", predictedValue, difference, product, x);
+        return accumulator + product;
+    }, 0) * (1 / m);
+};
+
+const gradientDescent = (X, y, alpha, iterations, w, b) => {
+    console.log("line 78", w);
+    // Initialize variables
+    let converged = false;
+    let iter = 0;
+    const m = X.length;
+    const tolerance = 1e-3;
+
+    // Initialize an array to store the costs per iteration
+    const costs = [];
+
+    // Start gradient descent loop
+    while (!converged && iter < iterations) {
+        // console.log("WandB",w,b);
+        // Initialize gradients to 0
+        let gradient = 0;
+        let yPred = X.map(x => predict({ w, b }, x));
+
+        // Compute gradients
+        gradient = calculateGradient(X, y, w, b);
+
+        // Update parameters
+        w -= alpha * gradient;
+        // console.log("line 98",iter,  alpha, gradient);
+        b -= alpha * (1 / m) * X.reduce((accumulator, x, j) => accumulator + (predict({ w, b }, x) - y[j]), 0);
+
+        // Check for convergence
+        if (Math.abs(gradient) < tolerance) {
+            converged = true;
+        }
+
+        // Calculate the mean squared cost
+        const cost = meanSquaredCost(yPred, y);
+
+        // Add the cost to the array
+        costs.push([cost, iter]);
+
+        // Print the cost per iteration
+        console.clear()
+        console.log(`Iteration ${iter + 1}: cost = ${cost}`);
+
+        // Increment iterations
+        iter++;
+    }
+
+    return { w, b, costs };
+};
+
 const meanSquaredCost = (yPred, y) => {
     // Calculate the error between the prediction and the actual label
     const error = y.map((yVal, index) => yVal - yPred[index]);
@@ -71,23 +132,28 @@ const meanSquaredCost = (yPred, y) => {
 };
 
 const predict = (model, X) => {
-    // console.log("line 67 ", model, X);
     // Extract the weights and bias from the model
     const { w, b } = model;
 
-    // Initialize an array to store the predictions
-    const predictions = [];
+    // Check if X is an array of features or a single feature
+    if (Array.isArray(X)) {
+        // Initialize an array to store the predictions
+        const predictions = [];
 
-    // Loop over the data and use the model to make predictions
-    for (let i = 0; i < X.length; i++) {
-        const x = X[i];
-        const prediction = w * x + b;
-        predictions.push(prediction);
+        // Loop over the data and use the model to make predictions
+        for (let i = 0; i < X.length; i++) {
+            const x = X[i];
+            const prediction = w * x + b;
+            predictions.push(prediction);
+        }
+
+        // Return the predictions
+        return predictions;
+    } else {
+        // Return the prediction for the single feature
+        return w * X + b;
     }
-
-    // Return the predictions
-    return predictions;
-}
+};
 
 const abbreviateNumber = (num) => {
     if (num >= 1000) {
@@ -127,13 +193,13 @@ const plot = (points, xLabel, yLabel) => {
         const xPos = Math.round((point[1] - xMin) / xScale);
         const yPos = 10 - Math.round((point[0] - yMin) / yScale);
         // console.log("line 121",xPos);
-        grid[yPos][xPos] = "*";
+        grid[yPos][xPos+2] = "*";
     });
 
     // Add the x-axis scale to the plot grid
     for (let i = xMin; i <= xMax; i++) {
         const xPos = Math.round((i - xMin) / xScale);
-        grid[9][xPos+3] = abbreviateNumber(i);
+        grid[9][xPos + 3] = abbreviateNumber(i);
     }
 
     // Add the y-axis scale to the plot grid
@@ -155,7 +221,6 @@ const plot = (points, xLabel, yLabel) => {
     // Print the plot to the console
     console.log(grid.map((row) => row.join(" ")).join("\n"));
 };
-
 
 const sample = (arrayLength, n) => {
     // console.log(arrayLength, n);
@@ -192,7 +257,6 @@ const normalize = (values) => {
     return values.map((value) => (value - mean) / std);
 };
 
-
 const main = async () => {
     // Load the data
     const data = await ETL("housing.csv", "area", "price");
@@ -225,17 +289,18 @@ const main = async () => {
     const zipped = validationX.map((x, i) => [x, yPred[i]]);
     plot(zipped, xLabel, yLabel);
 
-    
-    console.log("\n\n \t\tError per iteration set\n\n");
+    console.log("\t\tError per iteration set\n");
+    // console.log("line 186",yPred, validationY);
     const cost = meanSquaredCost(yPred, validationY);
-    console.log('\n\n\nValidation results:');
+
+    console.log('\n\nValidation results:');
     // console.log(`  Predictions: ${yPred.slice(0, 3)}...`);
     // console.log(`  Labels: ${y.slice(0, 3)}...`);
-    console.log(`  Mean Squared Cost: ${cost}`);
-
+    console.log(`  Mean Squared Cost: ${cost} for W:${model.w} B:${model.b}\n\n`);
 
     xLabel = 'iteration';
     yLabel = 'error';
+    // console.log(model.costs);
     plot(model.costs, xLabel, yLabel);
 };
 
