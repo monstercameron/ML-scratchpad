@@ -1,5 +1,6 @@
 const fs = require("fs");
 const { parse } = require("csv-parse");
+const nodeplotlib = require('nodeplotlib');
 
 const LinearRegressionModel = (data) => {
     // Extract the features and labels from the data
@@ -10,7 +11,7 @@ const LinearRegressionModel = (data) => {
     let b = 1;
 
     // Define the learning rate
-    const alpha = 0.001;
+    const alpha = 0.01;
 
     // Define the number of iterations
     const iterations = 100000;
@@ -72,7 +73,7 @@ const calculateGradient = (X, y, w, b) => {
         const product = difference * x;
         // console.log("line 73", predictedValue, difference, product, x);
         return accumulator + product;
-    }, 0) * (1 / m);
+    }, 0) * (1 / (2 * m));
 };
 
 const gradientDescent = (X, y, alpha, iterations, w, b) => {
@@ -124,11 +125,20 @@ const gradientDescent = (X, y, alpha, iterations, w, b) => {
 };
 
 const meanSquaredCost = (yPred, y) => {
-    // Calculate the error between the prediction and the actual label
-    const error = y.map((yVal, index) => yVal - yPred[index]);
+    // Check if yPred and y are arrays or single numbers
+    if (Array.isArray(yPred) && Array.isArray(y)) {
+        // Calculate the error between the prediction and the actual label
+        const error = y.map((yVal, index) => yVal - yPred[index]);
 
-    // Return the mean squared error
-    return (1 / y.length) * error.reduce((sum, current) => sum + current ** 2, 0);
+        // Return the mean squared error
+        return (1 / y.length) * error.reduce((sum, current) => sum + current ** 2, 0);
+    } else {
+        // Calculate the error between the prediction and the actual label
+        const error = y - yPred;
+
+        // Return the squared error
+        return error ** 2;
+    }
 };
 
 const predict = (model, X) => {
@@ -193,7 +203,7 @@ const plot = (points, xLabel, yLabel) => {
         const xPos = Math.round((point[1] - xMin) / xScale);
         const yPos = 10 - Math.round((point[0] - yMin) / yScale);
         // console.log("line 121",xPos);
-        grid[yPos][xPos+2] = "*";
+        grid[yPos][xPos + 2] = "*";
     });
 
     // Add the x-axis scale to the plot grid
@@ -221,6 +231,60 @@ const plot = (points, xLabel, yLabel) => {
     // Print the plot to the console
     console.log(grid.map((row) => row.join(" ")).join("\n"));
 };
+
+const scatterPlot = (data, xLabel, yLabel) => {
+    // Find the min and max values for both axes
+    const xValues = data.map(point => point[0]);
+    const yValues = data.map(point => point[1]);
+    const xMin = Math.min(...xValues);
+    const xMax = Math.max(...xValues);
+    const yMin = Math.min(...yValues);
+    const yMax = Math.max(...yValues);
+
+    // Create the plot with a 20x40 grid
+    let plot = '';
+    for (let i = 0; i < 20; i++) {
+        for (let j = 0; j < 40; j++) {
+            // Check if this point is within the bounding box
+            if (j >= xMin && j <= xMax && 20 - i <= yMax && 20 - i >= yMin) {
+                // Check if there is a data point at this location
+                let point = data.find(point => point[0] === j && point[1] === 20 - i);
+                if (point) {
+                    plot += 'X';
+                } else {
+                    plot += ' ';
+                }
+            } else {
+                plot += ' ';
+            }
+        }
+        plot += '\n';
+    }
+
+    // Add the x-axis label
+    plot += '\n';
+    for (let i = 0; i < xLabel.length; i++) {
+        plot += ' ';
+    }
+    for (let i = 0; i < 40 - xLabel.length; i++) {
+        plot += '_';
+    }
+    plot += '\n';
+    for (let i = 0; i < xLabel.length; i++) {
+        plot += ' ';
+    }
+    plot += xLabel;
+
+    // Add the y-axis label
+    const yLabelPadding = Array(yMax + 1).join('\n');
+    plot = yLabelPadding + plot;
+    let yLabelLines = yLabel.split('\n');
+    for (let i = 0; i < yLabelLines.length; i++) {
+        plot = ' ' + yLabelLines[i] + '\n' + plot;
+    }
+
+    console.log(plot);
+}
 
 const sample = (arrayLength, n) => {
     // console.log(arrayLength, n);
@@ -257,6 +321,17 @@ const normalize = (values) => {
     return values.map((value) => (value - mean) / std);
 };
 
+const unnormalize = (x_norm, x_min, x_max) => {
+    return x_norm * (x_max - x_min) + x_min;
+}
+
+const findMinMax = list => {
+    return {
+        min: Math.min(...list),
+        max: Math.max(...list),
+    };
+};
+
 const main = async () => {
     // Load the data
     const data = await ETL("housing.csv", "area", "price");
@@ -283,13 +358,43 @@ const main = async () => {
     // Evaluate the model using the mean squared cost function
     const yPred = predict(model, validationX);
 
-    console.log("\n\n \t\tValidation data set\n\n");
-    let xLabel = 'prices';
-    let yLabel = 'area';
-    const zipped = validationX.map((x, i) => [x, yPred[i]]);
-    plot(zipped, xLabel, yLabel);
+    // console.log("\n\n \t\tValidation data set\n\n");
+    // let xLabel = 'prices';
+    // let yLabel = 'area';
+    // const zipped = validationX.map((x, i) => [x, yPred[i]]);
+    // plot(zipped, xLabel, yLabel); 
 
-    console.log("\t\tError per iteration set\n");
+    const { min: x_min, max: x_max } = findMinMax(validationX);
+    const x_unnormalized = validationX.map(xn => unnormalize(xn, x_min, x_max));
+
+    const { min: y_min, max: y_max } = findMinMax(yPred);
+    const y_unnormalized = yPred.map(xn => unnormalize(xn, y_min, y_max));
+
+    let layout = {
+        legend: {
+            y: 0.5,
+            yref: 'paper',
+            font: {
+                family: 'Arial, sans-serif',
+                size: 20,
+                color: 'grey',
+            }
+        },
+        title: 'Price vs area',
+        showlegend: false
+    };
+    nodeplotlib.plot([{
+        // x: validationX,
+        // y: yPred,
+        x: x_unnormalized,
+        y: y_unnormalized,
+        mode: 'lines+markers',
+        type: 'scatter',
+        name: "Error cost per iteration"
+    }], layout);
+
+
+    // console.log("\t\tError per iteration set\n");
     // console.log("line 186",yPred, validationY);
     const cost = meanSquaredCost(yPred, validationY);
 
@@ -298,10 +403,35 @@ const main = async () => {
     // console.log(`  Labels: ${y.slice(0, 3)}...`);
     console.log(`  Mean Squared Cost: ${cost} for W:${model.w} B:${model.b}\n\n`);
 
-    xLabel = 'iteration';
-    yLabel = 'error';
+    // xLabel = 'error';
+    // yLabel = 'iteration';
     // console.log(model.costs);
-    plot(model.costs, xLabel, yLabel);
+    // plot(model.costs, xLabel, yLabel);
+
+    a = model.costs.map(pair => pair[0]);
+    b = model.costs.map(pair => pair[1]);
+
+    layout = {
+        legend: {
+            y: 0.5,
+            yref: 'paper',
+            font: {
+                family: 'Arial, sans-serif',
+                size: 20,
+                color: 'grey',
+            }
+        },
+        title: 'Cost per iteration',
+        showlegend: false
+    };
+    nodeplotlib.plot([{
+        x: b,
+        y: a,
+        mode: 'lines+markers',
+        type: 'scatter',
+        name: "Error cost per iteration"
+    }], layout);
+
 };
 
 main();
