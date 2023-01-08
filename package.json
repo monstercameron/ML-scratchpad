@@ -1,0 +1,16 @@
+{
+  "name": "linear-regressions",
+  "version": "1.0.0",
+  "description": "building a linear regression model from scratch",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "csv": "^6.2.5",
+    "nodemon": "^2.0.20"
+  }
+}
