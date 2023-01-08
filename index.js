@@ -384,10 +384,18 @@ const main = async () => {
         showlegend: false
     };
     nodeplotlib.plot([{
-        // x: validationX,
-        // y: yPred,
-        x: x_unnormalized,
-        y: y_unnormalized,
+        x: validationX,
+        y: validationY,
+        // x: x_unnormalized,
+        // y: y_unnormalized,
+        mode: 'markers',
+        type: 'scatter',
+        name: "Error cost per iteration"
+    }, {
+        x: validationX,
+        y: yPred,
+        // x: x_unnormalized,
+        // y: y_unnormalized,
         mode: 'lines+markers',
         type: 'scatter',
         name: "Error cost per iteration"
