@@ -51,29 +51,44 @@ const ETL = (file, next) => {
 
 const model = (w, b, trainingData) => {
     console.log("Creating Model");
-    const numData = trainingData[x].length
-    const label = []
+    const numData = trainingData.length
+    const labels = []
     for (let index = 0; index < numData; index++) {
-        // y = mx + b
-        label.push((w * trainingData[x][index]) + b)
+        // y = wx + b
+        labels.push(w * trainingData[x][index] + b)
     }
-    // I think this is the mean of all the Y's produced
-    return label.reduce((a, b) => a + b) / label.length;
+    return labels;
 }
 
-const predict = (w, b, y, validation) => {
+
+const predict = (w, b, validation) => {
     console.log("Predicting the values for the validation set");
     const predictedLabels = []
     for (let index = 0; index < validation[x].length; index++) {
-        // y−b = m (x−a)
-        predictedLabels.push([validation[x][index], ((y - b) / w)])
+        // y = wx + b
+        predictedLabels.push(w * validation[x][index] + b)
     }
-    // console.log(predictedLabels);
     return predictedLabels
 }
 
-const cost = (model, validation) => {
+
+const meanSquaredCost = (predictions, labels) => {
+    // Check that the arrays have the same length
+    if (predictions.length !== labels.length) {
+        throw new Error('Error: predictions and labels must have the same length.')
+    }
+
+    // Calculate the squared error for each prediction
+    const squaredErrors = predictions.map((prediction, index) => {
+        const error = prediction - labels[index]
+        return error * error
+    })
+
+    // Calculate the mean of the squared errors
+    const meanSquaredError = squaredErrors.reduce((a, b) => a + b) / squaredErrors.length
+    return meanSquaredError
 }
+
 
 const gradientDescent = () => {
     console.log("Finding local minima");
@@ -81,10 +96,10 @@ const gradientDescent = () => {
 
 const train = () => {
     console.log("Training Model");
-    const label = model(w, b, training)
+    const mode = model(w, b, training)
     console.log("slope from model", label);
 
-    const predictions = predict(w, b, label, validation)
+    const predictions = predict(w, b, validation)
     console.log("predicted labels per feature", predictions);
 }
 
